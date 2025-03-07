@@ -1,10 +1,10 @@
-const globals = require('globals');
-const pluginJs = require('@eslint/js');
-const tseslint = require('@typescript-eslint/eslint-plugin');
-const parser = require('@typescript-eslint/parser');
+import globals from 'globals';
+import pluginJs from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import parser from '@typescript-eslint/parser';
 
 /** @type {import('eslint').Linter.Config[]} */
-module.exports = [
+export default [
   {
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],
     languageOptions: {
