@@ -21,13 +21,14 @@ jobs:
         
     - name: Install dependencies for all services
       run: |
-        cd api-gateway && npm install && npm install --save-dev globals
-        cd ../class-service && npm install
-        cd ../course-service && npm install
-        cd ../student-service && npm install
-        cd ../teacher-service && npm install
-        cd ../schedule-service && npm install
-        
+          cd api-gateway && npm install && npm install --save-dev eslint @eslint/js @typescript-eslint/eslint-plugin @typescript-eslint/parser globals
+          cd ../class-service && npm install
+          cd ../course-service && npm install
+          cd ../student-service && npm install
+          cd ../teacher-service && npm install
+          cd ../schedule-service && npm install
+
+              
     - name: Lint all services
       run: |
         cd api-gateway && npm run lint
