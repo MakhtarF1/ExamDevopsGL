@@ -1,0 +1,120 @@
+version: '3'
+services:
+  api-gateway:
+    build:
+      context: ./api-gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - class-service
+      - course-service
+      - student-service
+      - teacher-service
+      - schedule-service
+    environment:
+      - CLASS_SERVICE_HOST=localhost
+      - CLASS_SERVICE_PORT=8094
+      - COURSE_SERVICE_HOST=course-service
+      - COURSE_SERVICE_PORT=3002
+      - STUDENT_SERVICE_HOST=student-service
+      - STUDENT_SERVICE_PORT=3003
+      - TEACHER_SERVICE_HOST=teacher-service
+      - TEACHER_SERVICE_PORT=3004
+      - SCHEDULE_SERVICE_HOST=localhost
+      - SCHEDULE_SERVICE_PORT=8095
+      - MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0
+    networks:
+      - school-network
+
+  class-service:
+    build:
+      context: ./class-service
+    ports:
+      - "8094:8094"
+    environment:
+      - MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0
+      - PORT=8094
+    networks:
+      - school-network
+
+  course-service:
+    build:
+      context: ./course-service
+    environment:
+      - MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0
+    networks:
+      - school-network
+
+  student-service:
+    build:
+      context: ./student-service
+    environment:
+      - MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0
+    networks:
+      - school-network
+
+  teacher-service:
+    build:
+      context: ./teacher-service
+    environment:
+      - MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0
+    networks:
+      - school-network
+
+  schedule-service:
+    build:
+      context: ./schedule-service
+    ports:
+      - "8095:8095"
+    environment:
+      - MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0
+      - PORT=8095
+    networks:
+      - school-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - school-network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3100:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - school-network
+    depends_on:
+      - prometheus
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3101:3100"
+    networks:
+      - school-network
+
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - /var/log:/var/log
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - school-network
+    depends_on:
+      - loki
+
+networks:
+  school-network:
+    driver: bridge
+

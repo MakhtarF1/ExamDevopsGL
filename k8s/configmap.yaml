@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: school-management-config
+  namespace: school-management
+data:
+  MONGODB_URI: "mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0"
+  CLASS_SERVICE_HOST: "localhost"
+  CLASS_SERVICE_PORT: "8094"
+  COURSE_SERVICE_HOST: "course-service"
+  COURSE_SERVICE_PORT: "3002"
+  STUDENT_SERVICE_HOST: "student-service"
+  STUDENT_SERVICE_PORT: "3003"
+  TEACHER_SERVICE_HOST: "teacher-service"
+  TEACHER_SERVICE_PORT: "3004"
+  SCHEDULE_SERVICE_HOST: "localhost"
+  SCHEDULE_SERVICE_PORT: "8095"
+

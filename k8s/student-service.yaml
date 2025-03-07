@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-service
+  namespace: school-management
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: student-service
+  template:
+    metadata:
+      labels:
+        app: student-service
+    spec:
+      containers:
+      - name: student-service
+        image: ${DOCKERHUB_USERNAME}/school-student-service:staging
+        ports:
+        - containerPort: 3003
+        envFrom:
+        - configMapRef:
+            name: school-management-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: student-service
+  namespace: school-management
+spec:
+  selector:
+    app: student-service
+  ports:
+  - port: 3003
+    targetPort: 3003
+

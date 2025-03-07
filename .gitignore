@@ -1,0 +1,48 @@
+# Node modules (dépendances)
+**/node_modules/
+
+# Dossier de build
+**/dist/
+**/build/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS (systèmes d'exploitation)
+.DS_Store
+Thumbs.db
+
+# Fichiers spécifiques à l'IDE
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Variables d'environnement sensibles
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Docker volumes
+data/
+
+# Coverage (résultats de tests)
+coverage/

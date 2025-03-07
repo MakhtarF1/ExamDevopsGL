@@ -1,0 +1,276 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, dev, staging ]
+  pull_request:
+    branches: [ master, dev, staging ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies for all services
+      run: |
+        cd api-gateway && npm install
+        cd ../class-service && npm install
+        cd ../course-service && npm install
+        cd ../student-service && npm install
+        cd ../teacher-service && npm install
+        cd ../schedule-service && npm install
+        
+    - name: Lint all services
+      run: |
+        cd api-gateway && npm run lint
+        cd ../class-service && npm run lint
+        cd ../course-service && npm run lint
+        cd ../student-service && npm run lint
+        cd ../teacher-service && npm run lint
+        cd ../schedule-service && npm run lint
+        
+    - name: Build all services
+      run: |
+        cd api-gateway && npm run build
+        cd ../class-service && npm run build
+        cd ../course-service && npm run build
+        cd ../student-service && npm run build
+        cd ../teacher-service && npm run build
+        cd ../schedule-service && npm run build
+        
+    - name: Run unit tests for all services
+      run: |
+        cd api-gateway && npm test
+        cd ../class-service && npm test
+        cd ../course-service && npm test
+        cd ../student-service && npm test
+        cd ../teacher-service && npm test
+        cd ../schedule-service && npm test
+        
+    - name: Run e2e tests for all services
+      run: |
+        cd api-gateway && npm run test:e2e
+        cd ../class-service && npm run test:e2e
+        cd ../course-service && npm run test:e2e
+        cd ../student-service && npm run test:e2e
+        cd ../teacher-service && npm run test:e2e
+        cd ../schedule-service && npm run test:e2e
+        
+    - name: SonarQube Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        
+  build-docker-images:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Build and push API Gateway
+      uses: docker/build-push-action@v4
+      with:
+        context: ./api-gateway
+        push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-api-gateway:${{ github.ref_name }}
+        
+    - name: Build and push Class Service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./class-service
+        push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-class-service:${{ github.ref_name }}
+        
+    - name: Build and push Course Service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./course-service
+        push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-course-service:${{ github.ref_name }}
+        
+    - name: Build and push Student Service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./student-service
+        push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-student-service:${{ github.ref_name }}
+        
+    - name: Build and push Teacher Service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./teacher-service
+        push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-teacher-service:${{ github.ref_name }}
+        
+    - name: Build and push Schedule Service
+      uses: docker/build-push-action@v4
+      with:
+        context: ./schedule-service
+        push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-schedule-service:${{ github.ref_name }}
+        
+    - name: Save Docker images for dev environment
+      if: github.ref == 'refs/heads/dev'
+      run: |
+        mkdir -p docker-images
+        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-api-gateway:dev > docker-images/api-gateway.tar
+        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-class-service:dev > docker-images/class-service.tar
+        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-course-service:dev > docker-images/course-service.tar
+        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-student-service:dev > docker-images/student-service.tar
+        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-teacher-service:dev > docker-images/teacher-service.tar
+        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-schedule-service:dev > docker-images/schedule-service.tar
+        
+    - name: Upload Docker images as artifacts
+      if: github.ref == 'refs/heads/dev'
+      uses: actions/upload-artifact@v3
+      with:
+        name: docker-images
+        path: docker-images/
+        
+  deploy-dev:
+    needs: build-docker-images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download Docker images
+      uses: actions/download-artifact@v3
+      with:
+        name: docker-images
+        path: docker-images
+        
+    - name: Load Docker images
+      run: |
+        docker load < docker-images/api-gateway.tar
+        docker load < docker-images/class-service.tar
+        docker load < docker-images/course-service.tar
+        docker load < docker-images/student-service.tar
+        docker load < docker-images/teacher-service.tar
+        docker load < docker-images/schedule-service.tar
+        
+    - name: Deploy to Dev Environment (Docker Compose)
+      run: |
+        echo "MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0" > .env
+        docker-compose -f docker-compose.yml up -d
+        
+  deploy-staging:
+    needs: build-docker-images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      
+    - name: Set Kubernetes context
+      uses: azure/k8s-set-context@v3
+      with:
+        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+        
+    - name: Update Kubernetes ConfigMap
+      run: |
+        cat <<EOF > k8s/configmap.yaml
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: school-management-config
+          namespace: school-management
+        data:
+          MONGODB_URI: "mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0"
+          CLASS_SERVICE_HOST: "class-service"
+          CLASS_SERVICE_PORT: "3001"
+          COURSE_SERVICE_HOST: "course-service"
+          COURSE_SERVICE_PORT: "3002"
+          STUDENT_SERVICE_HOST: "student-service"
+          STUDENT_SERVICE_PORT: "3003"
+          TEACHER_SERVICE_HOST: "teacher-service"
+          TEACHER_SERVICE_PORT: "3004"
+          SCHEDULE_SERVICE_HOST: "schedule-service"
+          SCHEDULE_SERVICE_PORT: "3005"
+        EOF
+        
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f k8s/namespace.yaml
+        kubectl apply -f k8s/configmap.yaml
+        kubectl apply -f k8s/mongodb.yaml
+        
+        # Update image tags in deployment files
+        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/api-gateway.yaml
+        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/class-service.yaml
+        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/course-service.yaml
+        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/student-service.yaml
+        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/teacher-service.yaml
+        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/schedule-service.yaml
+        
+        kubectl apply -f k8s/api-gateway.yaml
+        kubectl apply -f k8s/class-service.yaml
+        kubectl apply -f k8s/course-service.yaml
+        kubectl apply -f k8s/student-service.yaml
+        kubectl apply -f k8s/teacher-service.yaml
+        kubectl apply -f k8s/schedule-service.yaml
+        
+  deploy-prod:
+    needs: build-docker-images
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        
+    - name: Update Terraform Variables
+      run: |
+        cat <<EOF > terraform/terraform.tfvars
+        dockerhub_username = "${{ secrets.DOCKERHUB_USERNAME }}"
+        mongodb_uri = "mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0"
+        EOF
+        
+    - name: Terraform Apply
+      run: |
+        cd terraform
+        terraform apply -auto-approve
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        
+    - name: Deploy Monitoring Stack
+      run: |
+        cd monitoring
+        docker-compose up -d
+
