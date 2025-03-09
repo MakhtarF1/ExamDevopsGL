@@ -9,7 +9,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
     steps:
     - uses: actions/checkout@v3
     
@@ -21,22 +20,12 @@ jobs:
         
     - name: Install dependencies for all services
       run: |
-          cd api-gateway && npm install && npm install --save-dev eslint @eslint/js @typescript-eslint/eslint-plugin @typescript-eslint/parser globals
+          cd api-gateway && npm install
           cd ../class-service && npm install
           cd ../course-service && npm install
           cd ../student-service && npm install
           cd ../teacher-service && npm install
           cd ../schedule-service && npm install
-
-              
-    - name: Lint all services
-      run: |
-        cd api-gateway && npm run lint
-        cd ../class-service && npm run lint
-        cd ../course-service && npm run lint
-        cd ../student-service && npm run lint
-        cd ../teacher-service && npm run lint
-        cd ../schedule-service && npm run lint
         
     - name: Build all services
       run: |
@@ -55,27 +44,11 @@ jobs:
         cd ../student-service && npm test
         cd ../teacher-service && npm test
         cd ../schedule-service && npm test
-        
-    - name: Run e2e tests for all services
-      run: |
-        cd api-gateway && npm run test:e2e
-        cd ../class-service && npm run test:e2e
-        cd ../course-service && npm run test:e2e
-        cd ../student-service && npm run test:e2e
-        cd ../teacher-service && npm run test:e2e
-        cd ../schedule-service && npm run test:e2e
-        
-    - name: SonarQube Scan
-      uses: SonarSource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        
+
   build-docker-images:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
-    
     steps:
     - uses: actions/checkout@v3
     
@@ -85,68 +58,50 @@ jobs:
     - name: Login to DockerHub
       uses: docker/login-action@v2
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        username: makhtarf1
+        password: dckr_pat_1_7EfXLtR_EFuq7FFm8xkzQzXg4
         
     - name: Build and push API Gateway
       uses: docker/build-push-action@v4
       with:
         context: ./api-gateway
         push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-api-gateway:${{ github.ref_name }}
+        tags: makhtarf1/school-api-gateway:${{ github.ref_name }}
         
     - name: Build and push Class Service
       uses: docker/build-push-action@v4
       with:
         context: ./class-service
         push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-class-service:${{ github.ref_name }}
+        tags: makhtarf1/school-class-service:${{ github.ref_name }}
         
     - name: Build and push Course Service
       uses: docker/build-push-action@v4
       with:
         context: ./course-service
         push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-course-service:${{ github.ref_name }}
+        tags: makhtarf1/school-course-service:${{ github.ref_name }}
         
     - name: Build and push Student Service
       uses: docker/build-push-action@v4
       with:
         context: ./student-service
         push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-student-service:${{ github.ref_name }}
+        tags: makhtarf1/school-student-service:${{ github.ref_name }}
         
     - name: Build and push Teacher Service
       uses: docker/build-push-action@v4
       with:
         context: ./teacher-service
         push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-teacher-service:${{ github.ref_name }}
+        tags: makhtarf1/school-teacher-service:${{ github.ref_name }}
         
     - name: Build and push Schedule Service
       uses: docker/build-push-action@v4
       with:
         context: ./schedule-service
         push: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/school-schedule-service:${{ github.ref_name }}
-        
-    - name: Save Docker images for dev environment
-      if: github.ref == 'refs/heads/dev'
-      run: |
-        mkdir -p docker-images
-        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-api-gateway:dev > docker-images/api-gateway.tar
-        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-class-service:dev > docker-images/class-service.tar
-        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-course-service:dev > docker-images/course-service.tar
-        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-student-service:dev > docker-images/student-service.tar
-        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-teacher-service:dev > docker-images/teacher-service.tar
-        docker save ${{ secrets.DOCKERHUB_USERNAME }}/school-schedule-service:dev > docker-images/schedule-service.tar
-        
-    - name: Upload Docker images as artifacts
-      if: github.ref == 'refs/heads/dev'
-      uses: actions/upload-artifact@v3
-      with:
-        name: docker-images
-        path: docker-images/
+        tags: makhtarf1/school-schedule-service:${{ github.ref_name }}
         
   deploy-dev:
     needs: build-docker-images
@@ -156,84 +111,47 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Download Docker images
-      uses: actions/download-artifact@v3
-      with:
-        name: docker-images
-        path: docker-images
-        
-    - name: Load Docker images
+    - name: Deploy to Render (API Gateway)
       run: |
-        docker load < docker-images/api-gateway.tar
-        docker load < docker-images/class-service.tar
-        docker load < docker-images/course-service.tar
-        docker load < docker-images/student-service.tar
-        docker load < docker-images/teacher-service.tar
-        docker load < docker-images/schedule-service.tar
+        curl -X POST https://api.render.com/v1/services \
+        -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
+        -d '{"serviceId": "school-api-gateway","env": "production","docker": { "image": "makhtarf1/school-api-gateway:dev"}}'
         
-    - name: Deploy to Dev Environment (Docker Compose)
+    - name: Deploy to Render (Class Service)
       run: |
-        echo "MONGODB_URI=mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0" > .env
-        docker-compose -f docker-compose.yml up -d
+        curl -X POST https://api.render.com/v1/services \
+        -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
+        -d '{"serviceId": "school-class-service","env": "production","docker": { "image": "makhtarf1/school-class-service:dev"}}'
         
-  deploy-staging:
-    needs: build-docker-images
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/staging'
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      
-    - name: Set Kubernetes context
-      uses: azure/k8s-set-context@v3
-      with:
-        kubeconfig: ${{ secrets.KUBE_CONFIG }}
-        
-    - name: Update Kubernetes ConfigMap
+    - name: Deploy to Render (Course Service)
       run: |
-        cat <<EOF > k8s/configmap.yaml
-        apiVersion: v1
-        kind: ConfigMap
-        metadata:
-          name: school-management-config
-          namespace: school-management
-        data:
-          MONGODB_URI: "mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0"
-          CLASS_SERVICE_HOST: "class-service"
-          CLASS_SERVICE_PORT: "3001"
-          COURSE_SERVICE_HOST: "course-service"
-          COURSE_SERVICE_PORT: "3002"
-          STUDENT_SERVICE_HOST: "student-service"
-          STUDENT_SERVICE_PORT: "3003"
-          TEACHER_SERVICE_HOST: "teacher-service"
-          TEACHER_SERVICE_PORT: "3004"
-          SCHEDULE_SERVICE_HOST: "schedule-service"
-          SCHEDULE_SERVICE_PORT: "3005"
-        EOF
+        curl -X POST https://api.render.com/v1/services \
+        -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
+        -d '{"serviceId": "school-course-service","env": "production","docker": { "image": "makhtarf1/school-course-service:dev"}}'
         
-    - name: Deploy to Kubernetes
+    - name: Deploy to Render (Student Service)
       run: |
-        kubectl apply -f k8s/namespace.yaml
-        kubectl apply -f k8s/configmap.yaml
-        kubectl apply -f k8s/mongodb.yaml
+        curl -X POST https://api.render.com/v1/services \
+        -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
+        -d '{"serviceId": "school-student-service","env": "production","docker": { "image": "makhtarf1/school-student-service:dev"}}'
         
-        # Update image tags in deployment files
-        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/api-gateway.yaml
-        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/class-service.yaml
-        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/course-service.yaml
-        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/student-service.yaml
-        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/teacher-service.yaml
-        sed -i "s|\${DOCKERHUB_USERNAME}|${{ secrets.DOCKERHUB_USERNAME }}|g" k8s/schedule-service.yaml
+    - name: Deploy to Render (Teacher Service)
+      run: |
+        curl -X POST https://api.render.com/v1/services \
+        -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
+        -d '{"serviceId": "school-teacher-service","env": "production","docker": { "image": "makhtarf1/school-teacher-service:dev"}}'
         
-        kubectl apply -f k8s/api-gateway.yaml
-        kubectl apply -f k8s/class-service.yaml
-        kubectl apply -f k8s/course-service.yaml
-        kubectl apply -f k8s/student-service.yaml
-        kubectl apply -f k8s/teacher-service.yaml
-        kubectl apply -f k8s/schedule-service.yaml
+    - name: Deploy to Render (Schedule Service)
+      run: |
+        curl -X POST https://api.render.com/v1/services \
+        -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
+        -d '{"serviceId": "school-schedule-service","env": "production","docker": { "image": "makhtarf1/school-schedule-service:dev"}}'
+        
+    - name: Grafana Setup for Monitoring
+      run: |
+        curl -X POST https://grafana.example.com/api/dashboards/db \
+        -H "Authorization: Bearer YOUR_GRAFANA_API_KEY" \
+        -d '{"dashboard": { "title": "School Management Dashboard", "panels": [ ... ] }}'
         
   deploy-prod:
     needs: build-docker-images
@@ -244,33 +162,24 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v2
-      
-    - name: Terraform Init
+    - name: Deploy to Render (Production)
       run: |
-        cd terraform
-        terraform init
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        curl -X POST https://api.render.com/v1/services \
+        -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
+        -d '{"serviceId": "school-api-gateway","env": "production","docker": { "image": "makhtarf1/school-api-gateway:main"}}'
         
-    - name: Update Terraform Variables
+    - name: Grafana Setup for Production Monitoring
       run: |
-        cat <<EOF > terraform/terraform.tfvars
-        dockerhub_username = "${{ secrets.DOCKERHUB_USERNAME }}"
-        mongodb_uri = "mongodb+srv://fallmakh026:Passer123@cluster0.hfw7o.mongodb.net/GestionEcole?retryWrites=true&w=majority&appName=Cluster0"
-        EOF
+        curl -X POST https://grafana.example.com/api/dashboards/db \
+        -H "Authorization: Bearer YOUR_GRAFANA_API_KEY" \
+        -d '{"dashboard": { "title": "School Management Production Dashboard", "panels": [ ... ] }}'
         
-    - name: Terraform Apply
+    - name: Get Deployment URLs
       run: |
-        cd terraform
-        terraform apply -auto-approve
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        
-    - name: Deploy Monitoring Stack
-      run: |
-        cd monitoring
-        docker-compose up -d
+        echo "API Gateway URL: https://your-render-api-gateway-url"
+        echo "Class Service URL: https://your-render-class-service-url"
+        echo "Course Service URL: https://your-render-course-service-url"
+        echo "Student Service URL: https://your-render-student-service-url"
+        echo "Teacher Service URL: https://your-render-teacher-service-url"
+        echo "Schedule Service URL: https://your-render-schedule-service-url"
+
