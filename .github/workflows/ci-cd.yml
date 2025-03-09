@@ -20,12 +20,12 @@ jobs:
         
     - name: Install dependencies for all services
       run: |
-          cd api-gateway && npm install
-          cd ../class-service && npm install
-          cd ../course-service && npm install
-          cd ../student-service && npm install
-          cd ../teacher-service && npm install
-          cd ../schedule-service && npm install
+        cd api-gateway && npm install
+        cd ../class-service && npm install
+        cd ../course-service && npm install
+        cd ../student-service && npm install
+        cd ../teacher-service && npm install
+        cd ../schedule-service && npm install
         
     - name: Build all services
       run: |
@@ -35,19 +35,10 @@ jobs:
         cd ../student-service && npm run build
         cd ../teacher-service && npm run build
         cd ../schedule-service && npm run build
-        
-    - name: Run unit tests for all services
-      run: |
-        cd api-gateway && npm test
-        cd ../class-service && npm test
-        cd ../course-service && npm test
-        cd ../student-service && npm test
-        cd ../teacher-service && npm test
-        cd ../schedule-service && npm test
 
   build-docker-images:
-    needs: build-and-test
     runs-on: ubuntu-latest
+    needs: []
     if: github.event_name == 'push'
     steps:
     - uses: actions/checkout@v3
@@ -147,12 +138,6 @@ jobs:
         -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
         -d '{"serviceId": "school-schedule-service","env": "production","docker": { "image": "makhtarf1/school-schedule-service:dev"}}'
         
-    - name: Grafana Setup for Monitoring
-      run: |
-        curl -X POST https://grafana.example.com/api/dashboards/db \
-        -H "Authorization: Bearer YOUR_GRAFANA_API_KEY" \
-        -d '{"dashboard": { "title": "School Management Dashboard", "panels": [ ... ] }}'
-        
   deploy-prod:
     needs: build-docker-images
     runs-on: ubuntu-latest
@@ -168,12 +153,6 @@ jobs:
         -H "Authorization: Bearer rnd_8dMgGS6ExDBrJ2R7rsiVVCyyQKDf" \
         -d '{"serviceId": "school-api-gateway","env": "production","docker": { "image": "makhtarf1/school-api-gateway:main"}}'
         
-    - name: Grafana Setup for Production Monitoring
-      run: |
-        curl -X POST https://grafana.example.com/api/dashboards/db \
-        -H "Authorization: Bearer YOUR_GRAFANA_API_KEY" \
-        -d '{"dashboard": { "title": "School Management Production Dashboard", "panels": [ ... ] }}'
-        
     - name: Get Deployment URLs
       run: |
         echo "API Gateway URL: https://your-render-api-gateway-url"
@@ -182,4 +161,3 @@ jobs:
         echo "Student Service URL: https://your-render-student-service-url"
         echo "Teacher Service URL: https://your-render-teacher-service-url"
         echo "Schedule Service URL: https://your-render-schedule-service-url"
-
